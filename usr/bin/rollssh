@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+INSTALLER="/usr/share/rollssh/installer"
+
+if [ "$#" -gt 0 ]; then
+  exec "$INSTALLER" "$@"
+else
+  exec "$INSTALLER"
+fi

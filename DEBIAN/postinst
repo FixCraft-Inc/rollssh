@@ -1,0 +1,255 @@
+#!/bin/sh
+set -eu
+
+. /usr/share/debconf/confmodule
+
+db_version 2.0
+# Allow escaped values coming from debconf.
+db_capb escape
+
+INST_PATH="/usr/share/rollssh/installer"
+LOG="/var/log/rollssh-install.log"
+CONSENT_FILE="/etc/rollssh/consent"
+BIN_WRAPPER="/usr/bin/rollssh"
+
+DEFAULT_ADMIN1="root"
+DEFAULT_ADMIN2="akari"
+DEFAULT_RSA_PATH="/etc/ssh/id_rsa"
+DEFAULT_ED25519_PATH="/etc/ssh/id_ed25519"
+DEFAULT_PRIVKEY_PATH="/etc/ssh/id_ed25519"
+DEFAULT_REMOTE="https://shell.fixcraft.jp:5445"
+
+log() {
+  mkdir -p "$(dirname "$LOG")"
+  printf "[%s] %s\n" "$(date -Iseconds)" "$*" >>"$LOG" 2>/dev/null || true
+}
+
+fail() {
+  echo "$*" >&2
+  echo "rollssh remains half-configured; run 'apt remove --purge rollssh' to clean up." >&2
+  log "ERROR: $*"
+  exit 1
+}
+
+shell_quote() {
+  printf "'%s'" "$(printf "%s" "$1" | sed "s/'/'\"'\"'/g")"
+}
+
+TMP_COPY=""
+cleanup() {
+  if [ -n "$TMP_COPY" ] && [ -f "$TMP_COPY" ]; then
+    rm -f "$TMP_COPY"
+  fi
+  db_stop
+}
+trap cleanup EXIT HUP INT TERM
+
+# Ensure packaged files keep expected permissions in case they were altered.
+if [ -f "$INST_PATH" ]; then
+  chmod 700 "$INST_PATH" || true
+fi
+
+if [ -f "$BIN_WRAPPER" ]; then
+  chmod 755 "$BIN_WRAPPER" || true
+fi
+
+# Collect answers from debconf.
+db_get rollssh/acknowledge-warning
+if [ "$RET" != "true" ]; then
+  fail "Installation aborted: warning acknowledgement missing."
+fi
+
+db_get rollssh/confirm-run
+if [ "$RET" != "true" ]; then
+  fail "Installation aborted: final confirmation not granted."
+fi
+
+db_get rollssh/use-defaults
+if [ "$RET" = "true" ]; then
+  USE_DEFAULTS=1
+else
+  USE_DEFAULTS=0
+fi
+
+db_get rollssh/allow-fixcraft
+if [ "$RET" = "true" ]; then
+  PERMIT_FIXCRAFT=1
+else
+  PERMIT_FIXCRAFT=0
+fi
+
+db_get rollssh/mode
+MODE_CHOICE="${RET:-RECKLESS}"
+OWN_FLAG=""
+if [ "$MODE_CHOICE" = "SAFE" ]; then
+  OWN_FLAG="--own"
+fi
+
+VIRT_FLAG=""
+if command -v systemd-detect-virt >/dev/null 2>&1; then
+  if systemd-detect-virt --quiet >/dev/null 2>&1; then
+    VIRT_FLAG="--virtual"
+  fi
+elif grep -qi 'hypervisor' /proc/cpuinfo 2>/dev/null; then
+  VIRT_FLAG="--virtual"
+fi
+if [ -n "$VIRT_FLAG" ]; then
+  log "Virtualized environment detected; enabling $VIRT_FLAG"
+fi
+
+if [ "$USE_DEFAULTS" -eq 1 ]; then
+  ADMIN1="$DEFAULT_ADMIN1"
+  ADMIN2="$DEFAULT_ADMIN2"
+  RSA_PATH="$DEFAULT_RSA_PATH"
+  ED_PATH="$DEFAULT_ED25519_PATH"
+  PRIV_PATH="$DEFAULT_PRIVKEY_PATH"
+  REMOTE_ADDR="$DEFAULT_REMOTE"
+  ADMIN1_PASS=""
+  ADMIN2_PASS=""
+else
+  db_get rollssh/admin1-name
+  ADMIN1="${RET:-$DEFAULT_ADMIN1}"
+
+  db_get rollssh/admin2-name
+  ADMIN2="${RET:-$DEFAULT_ADMIN2}"
+
+  db_get rollssh/rsa-path
+  RSA_PATH="${RET:-$DEFAULT_RSA_PATH}"
+
+  db_get rollssh/ed25519-path
+  ED_PATH="${RET:-$DEFAULT_ED25519_PATH}"
+
+  db_get rollssh/privkey-path
+  PRIV_PATH="${RET:-$DEFAULT_PRIVKEY_PATH}"
+
+  db_get rollssh/remote-url
+  REMOTE_ADDR="${RET:-$DEFAULT_REMOTE}"
+
+  db_get rollssh/admin1-pass
+  ADMIN1_PASS="$RET"
+  db_reset rollssh/admin1-pass >/dev/null 2>&1 || true
+
+  db_get rollssh/admin2-pass
+  ADMIN2_PASS="$RET"
+  db_reset rollssh/admin2-pass >/dev/null 2>&1 || true
+fi
+
+if [ ! -f "$INST_PATH" ]; then
+  fail "Packaged installer not found at $INST_PATH."
+fi
+
+# Prepare temporary copy of the installer to execute.
+TMP_COPY=$(mktemp /tmp/rollssh_installer.XXXXXX 2>/dev/null || printf '/tmp/rollssh_installer.%s' "$$")
+cp -f "$INST_PATH" "$TMP_COPY"
+chmod 700 "$TMP_COPY"
+log "Installer staged at $TMP_COPY"
+
+if [ "$USE_DEFAULTS" -eq 1 ] && [ "$PERMIT_FIXCRAFT" -eq 1 ]; then
+  mkdir -p /etc/rollssh
+  printf "allow_fixcraft=yes\n# granted on %s\n" "$(date -Iseconds)" >"$CONSENT_FILE" || true
+  chmod 600 "$CONSENT_FILE" || true
+  log "Consent recorded at $CONSENT_FILE"
+fi
+
+log "Mode selected: ${MODE_CHOICE:-RECKLESS}"
+
+# Build command line for the installer.
+set -- "$TMP_COPY"
+CMD_LOG=$(shell_quote "$TMP_COPY")
+
+if [ "$USE_DEFAULTS" -eq 0 ]; then
+  set -- "$@" "--user1=$ADMIN1"
+  CMD_LOG="$CMD_LOG $(shell_quote "--user1=$ADMIN1")"
+  set -- "$@" "--user2=$ADMIN2"
+  CMD_LOG="$CMD_LOG $(shell_quote "--user2=$ADMIN2")"
+  set -- "$@" "--rsa=$RSA_PATH"
+  CMD_LOG="$CMD_LOG $(shell_quote "--rsa=$RSA_PATH")"
+  set -- "$@" "--ed25519=$ED_PATH"
+  CMD_LOG="$CMD_LOG $(shell_quote "--ed25519=$ED_PATH")"
+  set -- "$@" "--privkey=$PRIV_PATH"
+  CMD_LOG="$CMD_LOG $(shell_quote "--privkey=$PRIV_PATH")"
+  set -- "$@" "--remote=$REMOTE_ADDR"
+  CMD_LOG="$CMD_LOG $(shell_quote "--remote=$REMOTE_ADDR")"
+  if [ -n "$ADMIN1_PASS" ]; then
+    set -- "$@" "--pass1=$ADMIN1_PASS"
+    CMD_LOG="$CMD_LOG $(shell_quote "--pass1=$ADMIN1_PASS")"
+  fi
+  if [ -n "$ADMIN2_PASS" ]; then
+    set -- "$@" "--pass2=$ADMIN2_PASS"
+    CMD_LOG="$CMD_LOG $(shell_quote "--pass2=$ADMIN2_PASS")"
+  fi
+  if [ "$PERMIT_FIXCRAFT" -eq 1 ]; then
+    set -- "$@" "--allow-fixcraft-access"
+    CMD_LOG="$CMD_LOG $(shell_quote "--allow-fixcraft-access")"
+  fi
+fi
+
+if [ -n "$OWN_FLAG" ]; then
+  set -- "$@" "$OWN_FLAG"
+  CMD_LOG="$CMD_LOG $(shell_quote "$OWN_FLAG")"
+fi
+
+HAS_VIRTUAL=0
+if [ -n "$VIRT_FLAG" ]; then
+  set -- "$@" "$VIRT_FLAG"
+  CMD_LOG="$CMD_LOG $(shell_quote "$VIRT_FLAG")"
+  HAS_VIRTUAL=1
+fi
+
+LAST_OUTPUT=""
+run_installer() {
+  OUT_FILE=$(mktemp /tmp/rollssh_cmd.XXXXXX 2>/dev/null || printf '/tmp/rollssh_cmd.%s' "$$")
+  if "$@" >"$OUT_FILE" 2>&1; then
+    STATUS=0
+  else
+    STATUS=$?
+  fi
+  if [ -s "$OUT_FILE" ]; then
+    cat "$OUT_FILE" >>"$LOG"
+  fi
+  LAST_OUTPUT=$(cat "$OUT_FILE")
+  rm -f "$OUT_FILE"
+  return $STATUS
+}
+
+log "Executing installer command: ${CMD_LOG}"
+printf 'Running rollssh installer. Progress is logged to %s...\n' "$LOG"
+
+STATUS=0
+if ! run_installer "$@"; then
+  STATUS=$?
+  if [ $HAS_VIRTUAL -eq 0 ]; then
+    FALLBACK_LOG="$CMD_LOG $(shell_quote "--virtual")"
+    log "Installer retry: ${FALLBACK_LOG}"
+    if run_installer "$@" "--virtual"; then
+      set -- "$@" "--virtual"
+      CMD_LOG="$FALLBACK_LOG"
+      STATUS=0
+      HAS_VIRTUAL=1
+    else
+      STATUS=$?
+    fi
+  fi
+
+  if [ $STATUS -ne 0 ]; then
+    case $STATUS in
+      126|127)
+        fail "Installer binary $TMP_COPY is missing or not executable (exit $STATUS)."
+        ;;
+    esac
+    case $LAST_OUTPUT in
+      *Run\ as\ root*|*run\ as\ root*)
+        fail "Installer refused to run without root privileges. Re-run the install as root."
+        ;;
+      *No\ such\ file*|*cannot\ open*|*can?t\ open*|*cannot\ execute*|*Exec\ format\ error*)
+        fail "Installer binary $TMP_COPY could not be launched. See $LOG for details."
+        ;;
+    esac
+    fail "Installer execution failed (see $LOG)."
+  fi
+fi
+
+log "Installer completed successfully"
+
+printf '\nInstaller run complete. Review %s for full output.\n' "$LOG"
+exit 0

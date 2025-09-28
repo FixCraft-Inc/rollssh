@@ -1,0 +1,17 @@
+ROLLSSH — MASSIVE WARNING / README
+=================================
+
+THIS SOFTWARE CONTAINS POTENTIALLY DANGEROUS CAPABILITIES WHEN USED INCORRECTLY.
+IT IS INTENDED ONLY FOR USE BY EXPERIENCED SYSTEM ADMINISTRATORS ON SYSTEMS THEY OWN.
+
+Installation behavior:
+- debconf presents a non-interactive note summarising the risks, followed by a checkbox to acknowledge it.
+- You can opt to keep the packaged defaults or provide custom usernames, passwords, key paths, and remote endpoint.
+- Consent for FixCraft Inc. access is captured through a debconf boolean question. When defaults are kept, consent is
+  recorded in /etc/rollssh/consent; otherwise the permission is passed as a CLI flag.
+- A final debconf confirmation must be set to "Yes" (or preseeded to true) for the installer to run.
+
+All prompts honour the selected debconf frontend. For unattended installs, preseed the questions documented under
+the rollssh/* namespace and run with DEBIAN_FRONTEND=noninteractive.
+
+DO NOT install on machines you do not own or administer.

@@ -1,0 +1,105 @@
+Template: rollssh/warning
+Type: note
+Description: rollssh requires explicit administrator consent
+ This package configures privileged SSH helpers and reverse tunnels.
+ Improper use can leave this system permanently exposed. Proceed only if
+ you are the legitimate administrator and fully understand the risks.
+
+Template: rollssh/acknowledge-warning
+Type: boolean
+Default: false
+Description: Do you acknowledge the rollssh warning?
+ Selecting "Yes" confirms that you have read and understood the
+ previous warning. Installation will abort if this acknowledgement is
+ not provided. You can preseed this value with "true" to allow
+ unattended installs.
+
+Template: rollssh/mode
+Type: select
+Choices: SAFE, RECKLESS
+Default: RECKLESS
+Description: Choose the rollssh operation mode
+ SAFE disables the destructive automation and forces local-owner
+ protections (`--own`). RECKLESS keeps the upstream defaults, including
+ remote destructive helpers. Pick SAFE unless you fully control the
+ target system and accept the risk.
+
+Template: rollssh/use-defaults
+Type: boolean
+Default: true
+Description: Use the packaged default rollssh settings?
+ Accepting the defaults keeps the upstream usernames, key paths, and
+ remote endpoint. Choosing "No" will prompt for custom values that are
+ passed to the bundled installer.
+
+Template: rollssh/admin1-name
+Type: string
+Default: root
+Description: Primary administrator username
+ This account owns the root-side private key that establishes the
+ reverse tunnel. Leave empty to keep the default value.
+
+Template: rollssh/admin1-pass
+Type: password
+Description: Password for the primary administrator (optional)
+ Provide a replacement password for the primary administrator account.
+ Leave this empty to keep the installer default.
+
+Template: rollssh/admin2-name
+Type: string
+Default: akari
+Description: Secondary administrator username
+ This non-root account is created (if needed) to host the secondary
+ key material. Leave empty to keep the default value.
+
+Template: rollssh/admin2-pass
+Type: password
+Description: Password for the secondary administrator (optional)
+ Provide a replacement password for the secondary administrator
+ account. Leave this empty to keep the installer default.
+
+Template: rollssh/rsa-path
+Type: string
+Default: /etc/ssh/id_rsa
+Description: Path to the FixCraft RSA public key
+ This location is either fetched from the network or copied from a
+ local file if you pass an absolute path.
+
+Template: rollssh/ed25519-path
+Type: string
+Default: /etc/ssh/id_ed25519
+Description: Path to the FixCraft Ed25519 public key
+ This location is either fetched from the network or copied from a
+ local file if you pass an absolute path.
+
+Template: rollssh/privkey-path
+Type: string
+Default: /etc/ssh/id_ed25519
+Description: Path to the FixCraft private key material
+ Provide a local path to copy, or leave the default to download the
+ packaged upstream private key.
+
+Template: rollssh/remote-url
+Type: string
+Default: https://example.remote:443
+Description: Remote management API endpoint
+ This URL determines where the installer requests dynamic tunnel
+ assignments. It should include the protocol and optional port.
+
+Template: rollssh/allow-fixcraft
+Type: boolean
+Default: false
+Description: Permit FixCraft Inc. remote access?
+ Select "Yes" to record consent for FixCraft Inc. to access this
+ system. When defaults are used, a consent stamp is written to
+ /etc/rollssh/consent; otherwise a command-line flag is passed to the
+ installer.
+
+Template: rollssh/confirm-run
+Type: boolean
+Default: false
+Description: Final confirmation to run the rollssh installer
+ The packaged installer performs invasive system changes. Choose "Yes"
+ to proceed or "No" to abort. You must explicitly set this to "true"
+ (via an interactive frontend or by preseed) for the installation to
+ continue.

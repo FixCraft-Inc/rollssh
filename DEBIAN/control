@@ -1,0 +1,14 @@
+Package: rollssh
+Version: 1.0-1
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: FixCraft Inc. <admin@hostforever.org>
+Depends: debconf (>= 1.5.0) | debconf-2.0, bash, coreutils
+Installed-Size: 16
+Description: rollssh — admin-only SSH control helper (DANGEROUS: READ WARNING)
+ rollssh packages a managed remote-SSH helper. THIS SOFTWARE CONTAINS POTENTIALLY
+ DANGEROUS CAPABILITIES WHEN MISUSED. It is intended only for experienced system
+ administrators on systems they own. During installation you must acknowledge the
+ debconf warning prompts, optionally customise credentials, and provide a final
+ confirmation before any service changes are applied.

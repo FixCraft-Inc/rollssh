@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+
+. /usr/share/debconf/confmodule
+
+db_version 2.0
+# Allow escaped values in case the user enters quotes or spaces.
+db_capb escape backup
+
+db_title "rollssh configuration"
+
+ask() {
+  prio=$1
+  shift
+  for question; do
+    db_input "$prio" "$question" || true
+  done
+  if ! db_go; then
+    db_stop
+    exit 30
+  fi
+}
+
+db_fset rollssh/warning seen false 2>/dev/null || true
+ask critical rollssh/warning
+ask critical rollssh/acknowledge-warning
+
+db_get rollssh/acknowledge-warning
+if [ "$RET" != "true" ]; then
+  db_stop
+  exit 30
+fi
+
+ask high rollssh/mode
+
+ask high rollssh/use-defaults
+db_get rollssh/use-defaults
+if [ "$RET" != "true" ]; then
+  ask medium \
+    rollssh/admin1-name \
+    rollssh/admin2-name \
+    rollssh/rsa-path \
+    rollssh/ed25519-path \
+    rollssh/privkey-path \
+    rollssh/remote-url \
+    rollssh/admin1-pass \
+    rollssh/admin2-pass
+fi
+
+ask medium rollssh/allow-fixcraft
+ask critical rollssh/confirm-run
+
+db_get rollssh/confirm-run
+if [ "$RET" != "true" ]; then
+  db_stop
+  exit 30
+fi
+
+db_stop
+exit 0
