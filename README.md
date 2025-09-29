@@ -15,7 +15,7 @@
 > RollSSH contains powerful, potentially destructive features. Only install on machines you own or fully administrate. Misuse may result in permanent data loss, locked devices, or other catastrophic outcomes. If you don’t know what you’re doing — stop now.
 
 > [!IMPORTANT]
-> Backend server code is open, and located [HERE](https://www.github.com/FixCraft-Inc/rollssh-backend).
+> Backend server code is open ONLY for trusted users, and located [HERE](https://www.github.com/FixCraft-Inc/rollssh-backend).
 
 ---
 
