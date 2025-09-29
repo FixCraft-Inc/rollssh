@@ -5,7 +5,7 @@
 > [!WARNING]
 > I want to apologize in advance for my inappropriate language, but<br>
 > DUMBASS SCRIPT KIDDIES ARE $\color{#FF0000}{NOT}$ WELCOME HERE! <br>
-> THIS TOOL WAS $\color{#FF0000}{NOT}$ MADE FOR SCAMMERS WITH NO BRAIN
+> THIS TOOL WAS $\color{#FF0000}{NOT}$ MADE FOR SCAMMERS WITH NO BRAIN <br>
 > *if you need a .exe or .cmd version for windows, i do have a fully open-source project. <br>
 > BUT! i will only give r/o access to people who are willing to sign an NDA and a consent form to $\color{#FF0000}{NEVER}$ use it for malicious purposes
 
