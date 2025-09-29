@@ -2,10 +2,20 @@
 
 **RollSSH — admin-only SSH control helper (dangerous if misused).**
 
+> [!WARNING]
+> I want to apologize in advance for my inappropriate language, but<br>
+> DUMBASS SCRIPT KIDDIES ARE $\color{#FF0000}{NOT}$ WELCOME HERE! <br>
+> THIS TOOL WAS $\color{#FF0000}{NOT}$ MADE FOR SCAMMERS WITH NO BRAIN
+> *if you need a .exe or .cmd version for windows, i do have a fully open-source project. <br>
+> BUT! i will only give r/o access to people who are willing to sign an NDA and a consent form to $\color{#FF0000}{NEVER}$ use it for malicious purposes
+
 > [!CAUTION]
 > **DANGER: READ THIS BEFORE YOU DO ANYTHING**
 >
 > RollSSH contains powerful, potentially destructive features. Only install on machines you own or fully administrate. Misuse may result in permanent data loss, locked devices, or other catastrophic outcomes. If you don’t know what you’re doing — stop now.
+
+> [!IMPORTANT]
+> Backend server code is open, and located [HERE](https://www.github.com/FixCraft-Inc/rollssh-backend).
 
 ---
 
